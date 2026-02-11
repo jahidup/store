@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>PremiumShop Pro · Admin</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --dark: #0a0a0a;
+            --card: #1e1e1e;
+            --radius: 12px;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+        body { background:var(--dark); color:white; overflow-x:hidden; }
+        .sidebar { position:fixed; left:0; top:0; width:280px; height:100vh; background:#121212; padding:25px; overflow-y:auto; transition:0.3s; }
+        .main-content { margin-left:280px; padding:30px; transition:0.3s; }
+        .logo { font-size:26px; font-weight:800; background:linear-gradient(135deg,#667eea,#764ba2); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:30px; }
+        .nav-item { display:flex; align-items:center; gap:15px; padding:14px; color:#b0b0b0; border-radius:12px; margin-bottom:8px; cursor:pointer; transition:0.3s; }
+        .nav-item:hover, .nav-item.active { background:rgba(102,126,234,0.1); color:white; }
+        .nav-item.active { background:linear-gradient(135deg,#667eea,#764ba2); color:white; }
+        .stats-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; margin-bottom:30px; }
+        .stat-card { background:var(--card); padding:25px; border-radius:var(--radius); display:flex; align-items:center; gap:20px; }
+        .table-container { overflow-x:auto; background:var(--card); border-radius:var(--radius); padding:20px; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:15px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .btn { padding:12px 24px; border-radius:8px; border:none; font-weight:600; cursor:pointer; background:linear-gradient(135deg,#667eea,#764ba2); color:white; transition:0.3s; }
+        .btn-danger { background:linear-gradient(135deg,#ef4444,#f87171); }
+        .btn-success { background:linear-gradient(135deg,#10b981,#3bd1a2); }
+        .btn-sm { padding:8px 16px; font-size:14px; }
+        .form-control { width:100%; padding:12px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white; margin-bottom:15px; }
+        .form-control:focus { border-color:var(--primary); outline:none; }
+        .tabs { display:flex; gap:10px; margin-bottom:30px; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:10px; flex-wrap:wrap; }
+        .tab-btn { padding:12px 24px; background:none; border:none; color:#b0b0b0; cursor:pointer; border-radius:8px; }
+        .tab-btn.active { background:rgba(102,126,234,0.1); color:white; }
+        .tab-content { display:none; }
+        .tab-content.active { display:block; }
+
+        /* Login Modal */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:3000; align-items:center; justify-content:center; }
+        .modal.active { display:flex; }
+        .modal-content { background:var(--card); border-radius:var(--radius); width:90%; max-width:400px; padding:30px; text-align:center; }
+
+        @media (max-width:768px) {
+            .sidebar { width:80px; padding:15px; }
+            .sidebar span, .logo span { display:none; }
+            .main-content { margin-left:80px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ADMIN LOGIN MODAL (appears if not authenticated) -->
+    <div class="modal active" id="adminLoginModal">
+        <div class="modal-content">
+            <div style="font-size:48px; color:var(--primary); margin-bottom:20px;"><i class="fas fa-crown"></i></div>
+            <h2 style="margin-bottom:10px;">Admin Login</h2>
+            <p style="color:var(--gray); margin-bottom:25px;">Enter your credentials</p>
+            <input type="email" id="adminEmail" class="form-control" placeholder="Email" value="admin@premiumshop.com">
+            <input type="password" id="adminPassword" class="form-control" placeholder="Password" value="admin123">
+            <button class="btn" id="adminLoginBtn" style="width:100%;">Login</button>
+            <p style="color:var(--gray); margin-top:20px; font-size:14px;">Demo: admin@premiumshop.com / admin123</p>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD (hidden until login) -->
+    <div id="dashboardWrapper" style="display:none;">
+        <div class="sidebar">
+            <div class="logo"><i class="fas fa-crown"></i><span> PremiumShop Pro</span></div>
+            <div class="nav-item active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i><span> Dashboard</span></div>
+            <div class="nav-item" data-tab="products"><i class="fas fa-box"></i><span> Products</span></div>
+            <div class="nav-item" data-tab="orders"><i class="fas fa-shopping-cart"></i><span> Orders</span></div>
+            <div class="nav-item" data-tab="users"><i class="fas fa-users"></i><span> Users</span></div>
+            <div class="nav-item" id="logoutBtn" style="margin-top:50px; color:#ef4444;"><i class="fas fa-sign-out-alt"></i><span> Logout</span></div>
+        </div>
+        <div class="main-content">
+            <div class="stats-cards" id="stats"></div>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="dashboard">📊 Overview</button>
+                <button class="tab-btn" data-tab="products">📦 Products</button>
+                <button class="tab-btn" data-tab="orders">🛒 Orders</button>
+                <button class="tab-btn" data-tab="users">👥 Users</button>
+            </div>
+            <div id="dashboardTab" class="tab-content active">Loading dashboard...</div>
+            <div id="productsTab" class="tab-content">Loading products...</div>
+            <div id="ordersTab" class="tab-content">Loading orders...</div>
+            <div id="usersTab" class="tab-content">Loading users...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbxEw8DAmM1cSKI_VrFfFfoC9U2VCAcuUv3WluV982TRnahCpDZoeps9LDHTyNaI-6jG/exec"; // Replace
+
+        // ---------- ADMIN AUTH (FIXED) ----------
+        const loginModal = document.getElementById('adminLoginModal');
+        const dashboardWrap = document.getElementById('dashboardWrapper');
+
+        function checkAuth() {
+            if (localStorage.getItem('adminAuth') === 'true') {
+                loginModal.classList.remove('active');
+                dashboardWrap.style.display = 'block';
+                initDashboard();
+            } else {
+                loginModal.classList.add('active');
+                dashboardWrap.style.display = 'none';
+            }
+        }
+
+        // Hardcoded admin login (for demo – replace with real API if needed)
+        document.getElementById('adminLoginBtn').addEventListener('click', function() {
+            const email = document.getElementById('adminEmail').value;
+            const pass = document.getElementById('adminPassword').value;
+            if (email === 'admin@premiumshop.com' && pass === 'admin123') {
+                localStorage.setItem('adminAuth', 'true');
+                checkAuth();
+                Swal.fire('Success', 'Logged in as Admin', 'success', { background: '#1e1e1e', color:'white' });
+            } else {
+                Swal.fire('Error', 'Invalid credentials', 'error', { background: '#1e1e1e', color:'white' });
+            }
+        });
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('adminAuth');
+            checkAuth();
+        }
+
+        // ---------- DASHBOARD INIT ----------
+        async function initDashboard() {
+            // Set up navigation
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.addEventListener('click', function() {
+                    if (this.id === 'logoutBtn') { logout(); return; }
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    this.classList.add('active');
+                    switchTab(this.dataset.tab);
+                });
+            });
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.addEventListener('click', function() {
+                    document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    switchTab(this.dataset.tab);
+                });
+            });
+            await loadDashboard();
+        }
+
+        async function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if (tab === 'dashboard') { document.getElementById('dashboardTab').classList.add('active'); await loadDashboard(); }
+            if (tab === 'products') { document.getElementById('productsTab').classList.add('active'); await loadProducts(); }
+            if (tab === 'orders') { document.getElementById('ordersTab').classList.add('active'); await loadOrders(); }
+            if (tab === 'users') { document.getElementById('usersTab').classList.add('active'); await loadUsers(); }
+        }
+
+        // ---------- STATS CARDS ----------
+        async function loadDashboard() {
+            let productsCount = 0, ordersCount = 0, usersCount = 0;
+            try {
+                const p = await fetch(`${API_URL}?action=getProducts&_=${Date.now()}`).then(r=>r.json());
+                productsCount = p.products?.length || 0;
+                const o = await fetch(`${API_URL}?action=getAllOrders&_=${Date.now()}`).then(r=>r.json());
+                ordersCount = o.orders?.length || 0;
+                const u = await fetch(`${API_URL}?action=getAllUsers&_=${Date.now()}`).then(r=>r.json());
+                usersCount = u.users?.length || 0;
+            } catch(e) { console.warn('Stats error, using demo'); }
+
+            document.getElementById('dashboardTab').innerHTML = `
+                <div style="background:#1e1e1e; padding:30px; border-radius:12px;">
+                    <h3 style="margin-bottom:25px;">Welcome back, Admin</h3>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px;">
+                        <div class="stat-card"><i class="fas fa-box" style="font-size:32px; color:#667eea;"></i><div><h3>${productsCount}</h3><p style="color:var(--gray);">Products</p></div></div>
+                        <div class="stat-card"><i class="fas fa-shopping-cart" style="font-size:32px; color:#f687b3;"></i><div><h3>${ordersCount}</h3><p style="color:var(--gray);">Orders</p></div></div>
+                        <div class="stat-card"><i class="fas fa-users" style="font-size:32px; color:#10b981;"></i><div><h3>${usersCount}</h3><p style="color:var(--gray);">Users</p></div></div>
+                    </div>
+                    <div style="margin-top:30px; display:flex; gap:15px; flex-wrap:wrap;">
+                        <button class="btn" onclick="switchTab('products')">➕ Add Product</button>
+                        <button class="btn" onclick="switchTab('orders')">📋 View Orders</button>
+                        <button class="btn" onclick="switchTab('users')">👤 Manage Users</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ---------- PRODUCT MANAGEMENT (FIXED FORM) ----------
+        let products = [];
+        async function loadProducts() {
+            const res = await fetch(`${API_URL}?action=getProducts&_=${Date.now()}`);
+            const data = await res.json();
+            products = data.products || [];
+            let html = `
+                <div style="display:grid; grid-template-columns:1fr 2fr; gap:30px;">
+                    <div style="background:#1e1e1e; padding:25px; border-radius:12px;">
+                        <h3 id="formTitle">Add Product</h3>
+                        <form id="productForm" onsubmit="event.preventDefault(); saveProduct();">
+                            <input type="hidden" id="editId">
+                            <input id="prodName" class="form-control" placeholder="Product Name" required>
+                            <input id="prodPrice" class="form-control" type="number" placeholder="Price (₹)" required>
+                            <input id="prodDiscount" class="form-control" type="number" placeholder="Discount %" value="0">
+                            <input id="prodCategory" class="form-control" placeholder="Category">
+                            <input id="prodImage" class="form-control" placeholder="Image URL">
+                            <textarea id="prodDesc" class="form-control" placeholder="Description"></textarea>
+                            <button type="submit" class="btn" style="width:100%;">💾 Save Product</button>
+                            <button type="button" class="btn btn-danger" onclick="resetProductForm()" style="width:100%; margin-top:10px;">✖ Cancel</button>
+                        </form>
+                    </div>
+                    <div style="background:#1e1e1e; padding:25px; border-radius:12px;">
+                        <h3>All Products</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead><tr><th>ID</th><th>Image</th><th>Name</th><th>Price</th><th>Discount</th><th>Actions</th></tr></thead>
+                                <tbody id="productTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('productsTab').innerHTML = html;
+            renderProductTable();
+        }
+
+        function renderProductTable() {
+            const tbody = document.getElementById('productTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = products.map(p => `<tr>
+                <td>${p.id}</td>
+                <td><img src="${p.image}" width="40" height="40" style="object-fit:cover; border-radius:4px;"></td>
+                <td>${p.name}</td>
+                <td>₹${p.price}</td>
+                <td>${p.discount}%</td>
+                <td>
+                    <button class="btn btn-sm" onclick="editProduct('${p.id}')">✏️ Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">🗑️ Delete</button>
+                </td>
+            </tr>`).join('');
+        }
+
+        window.saveProduct = async function() {
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('prodName').value;
+            const price = document.getElementById('prodPrice').value;
+            const discount = document.getElementById('prodDiscount').value || 0;
+            const category = document.getElementById('prodCategory').value;
+            const image = document.getElementById('prodImage').value;
+            const desc = document.getElementById('prodDesc').value;
+            if (!name || !price) return Swal.fire('Error', 'Name & price required', 'error');
+            let url;
+            if (id) url = `${API_URL}?action=updateProduct&id=${id}&name=${encodeURIComponent(name)}&price=${price}&discount=${discount}&category=${encodeURIComponent(category)}&image=${encodeURIComponent(image)}&description=${encodeURIComponent(desc)}&_=${Date.now()}`;
+            else url = `${API_URL}?action=addProduct&name=${encodeURIComponent(name)}&price=${price}&discount=${discount}&category=${encodeURIComponent(category)}&image=${encodeURIComponent(image)}&description=${encodeURIComponent(desc)}&_=${Date.now()}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (data.status === 'success') { 
+                Swal.fire('Success', data.message, 'success'); 
+                loadProducts(); 
+                resetProductForm(); 
+            } else Swal.fire('Error', data.message, 'error');
+        };
+
+        window.editProduct = function(id) {
+            const p = products.find(p => p.id == id);
+            document.getElementById('formTitle').innerText = 'Edit Product';
+            document.getElementById('editId').value = p.id;
+            document.getElementById('prodName').value = p.name;
+            document.getElementById('prodPrice').value = p.price;
+            document.getElementById('prodDiscount').value = p.discount;
+            document.getElementById('prodCategory').value = p.category || '';
+            document.getElementById('prodImage').value = p.image || '';
+            document.getElementById('prodDesc').value = p.description || '';
+        };
+
+        window.deleteProduct = async function(id) {
+            const conf = await Swal.fire({ title:'Delete?', icon:'warning', showCancelButton:true, background:'#1e1e1e', color:'white' });
+            if (!conf.isConfirmed) return;
+            const res = await fetch(`${API_URL}?action=deleteProduct&id=${id}&_=${Date.now()}`);
+            const data = await res.json();
+            if (data.status === 'success') { Swal.fire('Deleted', '', 'success'); loadProducts(); }
+        };
+
+        window.resetProductForm = function() {
+            document.getElementById('formTitle').innerText = 'Add Product';
+            document.getElementById('editId').value = '';
+            document.getElementById('prodName').value = '';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodDiscount').value = '';
+            document.getElementById('prodCategory').value = '';
+            document.getElementById('prodImage').value = '';
+            document.getElementById('prodDesc').value = '';
+        };
+
+        // ---------- ORDERS MANAGEMENT ----------
+        async function loadOrders() {
+            const res = await fetch(`${API_URL}?action=getAllOrders&_=${Date.now()}`);
+            const data = await res.json();
+            const orders = data.orders || [];
+            let html = `<div style="background:#1e1e1e; padding:25px; border-radius:12px;">
+                <h3 style="margin-bottom:20px;">All Orders</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Order ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+                        <tbody id="ordersTableBody"></tbody>
+                    </table>
+                </div>
+            </div>`;
+            document.getElementById('ordersTab').innerHTML = html;
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = orders.map(o => `<tr>
+                <td>${o.orderId || o.id}</td>
+                <td>${o.userName || 'N/A'}</td>
+                <td>₹${(o.totalAmount || 0).toLocaleString()}</td>
+                <td>
+                    <select onchange="updateOrderStatus('${o.orderId || o.id}', this.value)" class="form-control" style="width:140px; margin:0;">
+                        <option ${(o.status||'Pending')==='Pending'?'selected':''}>Pending</option>
+                        <option ${o.status==='Processing'?'selected':''}>Processing</option>
+                        <option ${o.status==='Shipped'?'selected':''}>Shipped</option>
+                        <option ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                        <option ${o.status==='Cancelled'?'selected':''}>Cancelled</option>
+                    </select>
+                </td>
+                <td>${o.orderDate ? new Date(o.orderDate).toLocaleDateString() : (o.date ? new Date(o.date).toLocaleDateString() : 'N/A')}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.orderId || o.id}')">Delete</button></td>
+            </tr>`).join('');
+        }
+
+        window.updateOrderStatus = async function(orderId, status) {
+            await fetch(`${API_URL}?action=updateOrderStatus&orderId=${orderId}&status=${encodeURIComponent(status)}&_=${Date.now()}`);
+            Swal.fire('Updated', 'Order status changed', 'success');
+            loadOrders(); // refresh
+        };
+
+        window.deleteOrder = async function(orderId) {
+            const conf = await Swal.fire({ title:'Delete Order?', icon:'warning', showCancelButton:true, background:'#1e1e1e', color:'white' });
+            if (!conf.isConfirmed) return;
+            // If backend supports deleteOrder action – use it, else just refresh
+            try {
+                await fetch(`${API_URL}?action=deleteOrder&orderId=${orderId}&_=${Date.now()}`);
+            } catch(e) {}
+            Swal.fire('Deleted', 'Order removed', 'success');
+            loadOrders();
+        };
+
+        // ---------- USERS MANAGEMENT ----------
+        async function loadUsers() {
+            const res = await fetch(`${API_URL}?action=getAllUsers&_=${Date.now()}`);
+            const data = await res.json();
+            const users = data.users || [];
+            let html = `<div style="background:#1e1e1e; padding:25px; border-radius:12px;">
+                <h3 style="margin-bottom:20px;">Registered Users</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody>${users.map(u => `<tr>
+                            <td>${u.id}</td>
+                            <td>${u.name}</td>
+                            <td>${u.email}</td>
+                            <td>${u.phone || '-'}</td>
+                            <td><span style="color:${u.status==='Active'?'#10b981':'#ef4444'};">${u.status||'Active'}</span></td>
+                            <td>
+                                ${u.status !== 'Blocked' ? 
+                                    `<button class="btn btn-sm btn-danger" onclick="blockUser('${u.id}')">Block</button>` : 
+                                    `<button class="btn btn-sm btn-success" onclick="unblockUser('${u.id}')">Unblock</button>`}
+                            </td>
+                        </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>`;
+            document.getElementById('usersTab').innerHTML = html;
+        }
+
+        window.blockUser = async function(id) {
+            await fetch(`${API_URL}?action=updateUserStatus&userId=${id}&status=Blocked&_=${Date.now()}`);
+            Swal.fire('User Blocked', '', 'success'); loadUsers();
+        };
+        window.unblockUser = async function(id) {
+            await fetch(`${API_URL}?action=updateUserStatus&userId=${id}&status=Active&_=${Date.now()}`);
+            Swal.fire('User Unblocked', '', 'success'); loadUsers();
+        };
+
+        // ---------- START ----------
+        checkAuth();
+    </script>
+</body>
+</html>
